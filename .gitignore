@@ -1,0 +1,6 @@
+# Personal data stays local
+registry.json
+registry.json.tmp
+data/
+report.html
+__pycache__/
