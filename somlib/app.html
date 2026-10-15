@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>State of Me</title>
+<style>
+:root{--bg:#f7f6f3;--card:#fff;--ink:#1d1d1b;--muted:#6b6a65;--line:#e4e2dc;--bar:#3d6fb6;--bar-dim:#d9d6ce;--chip:#efede7;--accent:#3d6fb6;--field:#fff;--shadow:0 1px 2px rgba(0,0,0,.04)}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--card:#1f1f1d;--ink:#ecebe7;--muted:#9a988f;--line:#2e2d2a;--bar:#7aa5e6;--bar-dim:#3a3935;--chip:#2a2926;--accent:#7aa5e6;--field:#191918;--shadow:none}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:880px;margin:0 auto;padding:28px 16px 80px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+h1{font-size:26px;margin:0}
+.sub{color:var(--muted);margin:2px 0 0;font-size:14px}
+h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:30px 0 10px}
+button{font:inherit;font-size:13px;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:7px;padding:5px 11px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button:disabled{opacity:.5;cursor:default}
+input,select{font:inherit;font-size:14px;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:7px;padding:6px 9px;min-width:0}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow)}
+.top{display:flex;justify-content:space-between;gap:16px;align-items:center}
+.name{font-weight:600;font-size:16px}
+.chip{display:inline-block;background:var(--chip);border-radius:99px;padding:1px 8px;font-size:12px;color:var(--muted);margin:2px 4px 0 0}
+.stats{display:flex;flex-wrap:wrap;gap:2px 18px;font-size:13px;margin-top:8px}
+.muted{color:var(--muted)}
+.commit{font-size:13px;margin-top:6px}
+.notes{font-size:13px;color:var(--muted);margin-top:4px}
+.actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center}
+.logform{display:flex;gap:6px;flex:1 1 260px}
+.logform input{flex:1}
+.spark .on{fill:var(--bar)} .spark .off{fill:var(--bar-dim)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:14px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.grid label{display:flex;flex-direction:column;font-size:12px;color:var(--muted);gap:3px}
+.grid label.wide{grid-column:1/-1}
+.row{display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.row .grow{flex:1;min-width:140px}
+.row .when{color:var(--muted);font-size:13px}
+.empty{color:var(--muted);font-style:italic;font-size:14px}
+details summary{cursor:pointer;color:var(--muted);font-size:14px;margin-top:28px}
+#status{font-size:12px;color:var(--muted);text-align:right}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:9px;font-size:14px;display:flex;gap:12px;align-items:center;max-width:calc(100% - 32px);box-shadow:0 4px 18px rgba(0,0,0,.2)}
+#toast[hidden]{display:none}
+#toast button{background:transparent;color:var(--bg);border-color:var(--bg)}
+@media (max-width:560px){.top{flex-direction:column;align-items:flex-start}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div><h1>State of Me</h1><p class="sub" id="today"></p></div>
+    <div>
+      <div style="display:flex;gap:6px;justify-content:flex-end">
+        <button id="syncBtn">Sync</button>
+        <button id="addBtn" class="primary">+ Add front</button>
+      </div>
+      <div id="status"></div>
+    </div>
+  </header>
+
+  <form id="addForm" class="panel" hidden>
+    <div class="grid">
+      <label class="wide">Name<input name="name" required placeholder="e.g. Calculus II, Spanish, 10k training"></label>
+      <label>Type<select name="type"></select></label>
+      <label>GitHub repo (optional)<input name="repo" placeholder="owner/repo"></label>
+      <label>Deadline (optional)<input name="deadline" type="date"></label>
+      <label class="wide">Goal (optional)<input name="goal" placeholder="What does done / good look like?"></label>
+    </div>
+    <div class="actions"><button class="primary" type="submit">Add</button><button type="button" data-cancel>Cancel</button></div>
+  </form>
+
+  <h2 id="activeH">Active</h2>
+  <div id="active"></div>
+  <h2 id="parkedH">Parked</h2>
+  <div id="parked"></div>
+  <details id="doneWrap" hidden><summary id="doneH"></summary><div id="done"></div></details>
+</main>
+<div id="toast" hidden></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const TREND = {up:"↑ picking up", down:"↓ easing off", steady:"→ steady", quiet:"· quiet this month"};
+let state = null;
+const byId = id => [...state.active, ...state.parked, ...state.done].find(e => e.id === id);
+
+async function api(path, body) {
+  const opts = body === undefined ? {} : {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)};
+  let res;
+  try { res = await fetch(path, opts); }
+  catch { throw new Error("Can't reach the app - is it still running? Reopen it from the desktop icon."); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+  return data;
+}
+
+let toastTimer;
+function toast(msg, undo) {
+  const t = $("#toast");
+  t.innerHTML = `<span>${esc(msg)}</span>` + (undo ? `<button type="button">Undo</button>` : "");
+  t.hidden = false;
+  if (undo) t.querySelector("button").onclick = () => { t.hidden = true; undo(); };
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.hidden = true, undo ? 7000 : 4000);
+}
+
+function spark(w) {
+  const bw = 10, g = 3, h = 34, peak = Math.max(1, ...w), width = w.length * (bw + g) - g;
+  return `<svg class="spark" width="${width}" height="${h}" role="img" aria-label="Activity per week, last ${w.length} weeks">` +
+    w.map((v, i) => { const bh = v ? Math.max(4, Math.round(v / peak * h)) : 2;
+      return `<rect x="${i*(bw+g)}" y="${h-bh}" width="${bw}" height="${bh}" rx="2" class="${v?"on":"off"}"><title>${v} that week</title></rect>`; }).join("") +
+    `</svg>`;
+}
+
+function chips(e) {
+  return `<span class="chip">${esc(e.type)}</span>` +
+    (e.repo ? `<span class="chip">github · ${esc(e.repo)}</span>` : e.provenance === "self-logged" ? `<span class="chip">self-logged</span>` : "");
+}
+
+function commitment(e) {
+  const parts = [];
+  if (e.goal) parts.push(`Goal: ${esc(e.goal)}`);
+  if (e.deadline) parts.push(`Due ${esc(e.deadline)} (${esc(e.deadline_text)})`);
+  return parts.length ? `<div class="commit">${parts.join(" · ")}</div>` : "";
+}
+
+function activeCard(e) {
+  let stats;
+  if (e.has_data) {
+    const rhythm = e.rhythm ? `usually ${e.rhythm}${e.long_break ? `, breaks up to ${e.long_break} are normal` : ""}` : "still learning its rhythm";
+    stats = `<div class="stats"><span>last touched <b>${esc(e.last_human)}</b></span>
+      <span><b>${e.count_30d}</b> in 30 days</span><span>${TREND[e.trend]}</span><span class="muted">rhythm: ${rhythm}</span></div>`;
+  } else {
+    stats = `<div class="stats muted">${e.repo ? "No commits yet - press Sync." : "Nothing logged yet - log your first session below."}</div>`;
+  }
+  const notes = e.notes.length ? `<div class="notes">Last note: “${esc(e.notes[0].note || "(no note)")}” · ${esc(e.notes[0].date)}</div>` : "";
+  const placeholder = e.repo ? "Add a note (commits are what count here)" : "What did you do? (Enter to log)";
+  return `<article class="card" data-id="${esc(e.id)}">
+    <div class="top"><div><div class="name">${esc(e.name)}</div><div>${chips(e)}</div></div>${spark(e.weekly)}</div>
+    ${stats}${commitment(e)}${notes}
+    <div class="actions">
+      <form class="logform"><input name="note" placeholder="${placeholder}" aria-label="Log for ${esc(e.name)}"><button type="submit">Log</button></form>
+      <button data-act="edit">Edit</button><button data-act="parked">Park</button><button data-act="done">Done</button>
+    </div>
+  </article>`;
+}
+
+function row(e, buttons) {
+  const when = e.has_data ? `last touched ${esc(e.last)} · ${esc(e.last_human)}` : "no activity on record";
+  return `<div class="row" data-id="${esc(e.id)}"><span class="grow"><b>${esc(e.name)}</b> <span class="chip">${esc(e.type)}</span></span>
+    <span class="when">${when}</span>${buttons}<button data-act="edit">Edit</button></div>`;
+}
+
+function render() {
+  $("#today").textContent = state.today_label;
+  $("#activeH").textContent = `Active · ${state.active.length}`;
+  $("#parkedH").textContent = `Parked · ${state.parked.length}`;
+  $("#active").innerHTML = state.active.length ? state.active.map(activeCard).join("")
+    : `<p class="empty">Nothing active. Add a front, or bring one back from Parked.</p>`;
+  $("#parked").innerHTML = state.parked.length
+    ? state.parked.map(e => row(e, `<button data-act="active">Make active</button><button data-act="done">Done</button>`)).join("")
+    : `<p class="empty">Nothing parked.</p>`;
+  $("#doneWrap").hidden = !state.done.length;
+  $("#doneH").textContent = `${state.done.length} done / retired`;
+  $("#done").innerHTML = state.done.map(e => row(e, `<button data-act="active">Make active</button>`)).join("");
+  const sel = $("#addForm select");
+  if (!sel.options.length) sel.innerHTML = state.types.map(t => `<option>${t}</option>`).join("");
+}
+
+async function load() { state = await api("/api/state"); render(); }
+
+function editForm(e) {
+  return `<form class="panel editform" data-id="${esc(e.id)}"><div class="grid">
+    <label class="wide">Name<input name="name" required value="${esc(e.name)}"></label>
+    <label>Type<select name="type">${state.types.map(t => `<option ${t===e.type?"selected":""}>${t}</option>`).join("")}</select></label>
+    <label>GitHub repo<input name="repo" value="${esc(e.repo)}" placeholder="owner/repo"></label>
+    <label>Deadline<input name="deadline" type="date" value="${esc(e.deadline)}"></label>
+    <label class="wide">Goal<input name="goal" value="${esc(e.goal)}"></label></div>
+    <div class="actions"><button class="primary" type="submit">Save</button><button type="button" data-cancel>Cancel</button></div></form>`;
+}
+
+const LABEL = {active:"Made active", parked:"Parked", done:"Marked done"};
+
+document.addEventListener("click", async ev => {
+  const btn = ev.target.closest("button");
+  if (!btn) return;
+  if (btn.hasAttribute("data-cancel")) {
+    const form = btn.closest("form");
+    if (form.id === "addForm") { form.hidden = true; form.reset(); } else form.remove();
+    return;
+  }
+  const act = btn.dataset.act, holder = btn.closest("[data-id]");
+  if (!act || !holder) return;
+  const e = byId(holder.dataset.id);
+  if (act === "edit") {
+    document.querySelectorAll(".editform").forEach(f => f.remove());
+    holder.insertAdjacentHTML("afterend", editForm(e));
+    holder.nextElementSibling.querySelector("input").focus();
+    return;
+  }
+  try {
+    const r = await api("/api/status", {id:e.id, status:act});
+    await load();
+    toast(`${LABEL[act]}: ${r.name}. History is kept.`, async () => {
+      await api("/api/status", {id:e.id, status:r.previous}); await load();
+    });
+  } catch (err) { toast(err.message); }
+});
+
+document.addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const form = ev.target, data = Object.fromEntries(new FormData(form));
+  const submit = form.querySelector("button[type=submit]");
+  submit.disabled = true;
+  try {
+    if (form.id === "addForm") {
+      const r = await api("/api/add", data);
+      form.hidden = true; form.reset();
+      await load(); toast(`Added ${r.name}.` + (r.messages.length ? " " + r.messages.join("; ") : ""));
+    } else if (form.classList.contains("editform")) {
+      const r = await api("/api/edit", {id:form.dataset.id, ...data});
+      await load(); toast(`Saved ${r.name}.`);
+    } else if (form.classList.contains("logform")) {
+      const id = form.closest("[data-id]").dataset.id;
+      const r = await api("/api/log", {id, note:data.note});
+      await load(); toast(r.counts ? `Logged for ${r.name}.` : `Note saved for ${r.name} (GitHub commits still decide activity).`);
+    }
+  } catch (err) { toast(err.message); submit.disabled = false; }
+});
+
+$("#addBtn").onclick = () => { const f = $("#addForm"); f.hidden = !f.hidden; if (!f.hidden) f.querySelector("input").focus(); };
+
+async function sync(quiet) {
+  const btn = $("#syncBtn");
+  btn.disabled = true; btn.textContent = "Syncing…";
+  try {
+    const r = await api("/api/sync", {});
+    await load();
+    $("#status").textContent = `synced ${new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}`;
+    const problems = r.messages.filter(m => m.includes("skipped"));
+    if (!quiet || problems.length) toast(problems.length ? problems.join("; ") : "Up to date.");
+  } catch (err) { toast(err.message); }
+  btn.disabled = false; btn.textContent = "Sync";
+}
+$("#syncBtn").onclick = () => sync(false);
+
+load().then(() => sync(true)).catch(err => toast(err.message));
+</script>
+</body>
+</html>

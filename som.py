@@ -12,7 +12,7 @@ import datetime as dt
 import os
 import sys
 
-from somlib import activity, github, registry, render_cli, render_html
+from somlib import activity, github, registry, render_cli, render_html, server
 
 REPORT_PATH = registry.ROOT / "report.html"
 
@@ -79,18 +79,8 @@ def cmd_log(args, reg):
 
 
 def _sync_entries(entries, full=False):
-    repos = sorted({e["source"]["repo"] for e in entries
-                    if e.get("source") and e["source"].get("kind") == "github"})
-    if not repos:
-        return
-    if not os.environ.get("GITHUB_TOKEN"):
-        print("(No GITHUB_TOKEN set - public repos only, 60 requests/hour.)")
-    for repo in repos:
-        try:
-            new = github.sync_repo(repo, full=full)
-            print(f"  github {repo}: {new} new commit{'s' if new != 1 else ''}")
-        except github.GitHubError as e:
-            print(f"  github {repo}: skipped - {e}")
+    for line in github.sync_entries(entries, full=full):
+        print(f"  {line}")
 
 
 def cmd_sync(args, reg):
@@ -168,6 +158,7 @@ def main(argv=None):
     r = sub.add_parser("report", help="write report.html")
     r.add_argument("--open", action="store_true", help="open it in the browser")
     sub.add_parser("daily", help="sync + report, logged to data/daily.log (for Task Scheduler)")
+    sub.add_parser("app", help="open the interactive dashboard in your browser")
 
     args = p.parse_args(argv)
     reg = registry.load()
@@ -188,6 +179,7 @@ def main(argv=None):
             case "show": cmd_show(args, reg)
             case "report": cmd_report(args, reg)
             case "daily": cmd_daily(args, reg)
+            case "app": server.run()
     except LookupError as e:
         print(e.args[0], file=sys.stderr)
         return 1

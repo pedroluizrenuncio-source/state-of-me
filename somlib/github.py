@@ -55,6 +55,35 @@ def _next_link(link_header):
     return m.group(1) if m else None
 
 
+def get_token():
+    """GITHUB_TOKEN from the environment, falling back to the saved Windows
+    user variable (apps started before it was set won't have it in env)."""
+    token = os.environ.get("GITHUB_TOKEN")
+    if not token and os.name == "nt":
+        import winreg
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as key:
+                token = winreg.QueryValueEx(key, "GITHUB_TOKEN")[0]
+        except OSError:
+            pass
+    return token or None
+
+
+def sync_entries(entries, full=False):
+    """Sync every GitHub repo attached to these entries; returns status lines."""
+    repos = sorted({e["source"]["repo"] for e in entries
+                    if e.get("source") and e["source"].get("kind") == "github"})
+    token = get_token()
+    messages = [] if token or not repos else ["(No GITHUB_TOKEN set - public repos only, 60 requests/hour.)"]
+    for repo in repos:
+        try:
+            new = sync_repo(repo, full=full, token=token)
+            messages.append(f"github {repo}: {new} new commit{'s' if new != 1 else ''}")
+        except GitHubError as e:
+            messages.append(f"github {repo}: skipped - {e}")
+    return messages
+
+
 def cache_path(repo):
     return CACHE_DIR / (repo.replace("/", "__") + ".json")
 
@@ -68,7 +97,7 @@ def load_cache(repo):
 
 def sync_repo(repo, full=False, token=None):
     """Fetch new commits on the default branch; returns number of new commits."""
-    token = token if token is not None else os.environ.get("GITHUB_TOKEN")
+    token = token if token is not None else get_token()
     cache = None if full else load_cache(repo)
     known = {c["sha"]: c for c in cache["commits"]} if cache else {}
 

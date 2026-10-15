@@ -1,9 +1,14 @@
-# State of Me
+﻿# State of Me
 
 Spotlight, not scoreboard. Shows what you're actually working on, using real data where it exists,
 and keeps everything else in a quiet parked list. No flags, no streaks.
 
 ## Daily use
+
+Double-click **State of Me** on the desktop: the dashboard opens in your browser, and you can add,
+log, edit, park and finish fronts there with buttons. (Same as `python som.py app`.)
+
+Terminal versions:
 
 ```
 som                 # sync sources, then show the picture
